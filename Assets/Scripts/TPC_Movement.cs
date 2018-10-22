@@ -14,6 +14,7 @@ public class TPC_Movement : MonoBehaviour
     public float m_fJumpForce = 20.0f; // Jump velocity
     public float m_fGravity = 5.0f; // Gravity velocity
     public float m_fVerticalVelocity = 0; // Current vertical velocity
+    public float m_fHorizontalVelocity = 0; // Current vertical velocity
     public float m_fCameraSpeed = 2f; // Speed of camera rotation
     public int m_nDirY; // Direction of vertical movement
     public int m_nDirZ; // Direction of horizontal movement
@@ -28,8 +29,8 @@ public class TPC_Movement : MonoBehaviour
 
     void Update()
     {
-        CheckCollisions(); // Checks collisions based on velocity and direction
         MovementInput(); // Gets current movement input and direction
+        CheckCollisions(); // Checks collisions based on velocity and direction
         Gravity(); // Applies gravity if needed
         if (Input.GetButtonDown("Jump")) // Checks if Jump button pressed
         {
@@ -41,6 +42,7 @@ public class TPC_Movement : MonoBehaviour
     public void MovementInput()
     {
         m_fMovementInput = Input.GetAxisRaw("Vertical"); // Gets all vertical axis input
+        m_fHorizontalVelocity = m_fMovementInput * m_fMovementSpeed;
         m_fCameraInput = Input.GetAxisRaw("Horizontal"); // Horizontal movement    
         if (m_fVerticalVelocity > 0) // If vertical velocity is greater then 0
         {
@@ -74,10 +76,10 @@ public class TPC_Movement : MonoBehaviour
             startPos -= transform.right * m_cCapsuleCollider.radius;
             for (int j = 0; j <= m_nHorizontalRayCount; j++)
             {
-                Debug.DrawRay(startPos + new Vector3(transform.right.x * j * ((m_cCapsuleCollider.radius * 2) / m_nHorizontalRayCount), 0, 0), transform.forward, Color.red);
-                if(Physics.Raycast(startPos + new Vector3(j * ((m_cCapsuleCollider.radius * 2) / m_nHorizontalRayCount), 0, 0), transform.forward, m_cCapsuleCollider.radius,m_LayerMask))
+                Debug.DrawRay(startPos + new Vector3(transform.right.x * j * ((m_cCapsuleCollider.radius * 2) / m_nHorizontalRayCount), 0, 0), transform.forward * m_fMovementInput, Color.red);
+                if(Physics.Raycast(startPos + new Vector3(j * ((m_cCapsuleCollider.radius * 2) / m_nHorizontalRayCount), 0, 0), transform.forward * m_fMovementInput, m_cCapsuleCollider.radius,m_LayerMask))
                 {
-                    //Debug.Log("hit");
+                    m_fHorizontalVelocity = 0;
                 }
             }
         }
@@ -109,7 +111,7 @@ public class TPC_Movement : MonoBehaviour
 
     public void Move()
     {
-        transform.Translate(new Vector3( 0, m_fVerticalVelocity * Time.deltaTime, m_fMovementInput * m_fMovementSpeed * Time.deltaTime)); // Applies velocity based on input, move speed and vertical velocity
+        transform.Translate(new Vector3( 0, m_fVerticalVelocity * Time.deltaTime, m_fHorizontalVelocity * Time.deltaTime)); // Applies velocity based on input, move speed and vertical velocity
         transform.Rotate(Vector3.up, m_fCameraInput * m_fCameraSpeed * Time.deltaTime); // Updates rotation based on horizontal input
     }
 }
