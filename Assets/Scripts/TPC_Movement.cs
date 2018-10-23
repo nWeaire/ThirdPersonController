@@ -4,26 +4,34 @@ using UnityEngine;
 
 public class TPC_Movement : MonoBehaviour
 {
+    #region Collision Variables
+    public int m_nHorizontalRayCount = 5; // Amount of rays for horizontal collision detection
+    public int m_nVerticalRayCount = 10; // Amount of rays for vertical collision detection
+    public float m_fRayLength = 0.5f;
+    public float m_fControllerHeight = 2f;
+    public LayerMask m_CollisionMask; // Layer mask for collision checks
+    public bool m_bIsGrounded = false; // Checks if player is grounded
+    public int m_nJumpRayCount = 4;
 
+    #endregion
+
+    #region Movement Variables
     public float m_fMovementSpeed = 5.0f; // Base movement speed
     private float m_fMovementInput; // Vertical input
-    private float m_fCameraInput = 0; // Horizontal input
-    public LayerMask m_LayerMask; // Layer mask for collision checks
-    private CapsuleCollider m_cCapsuleCollider; // Reference to capsule collider
-    public bool m_bIsGrounded = false; // Checks if player is grounded
+    public int m_nDirY; // Direction of vertical movement
+    public int m_nDirZ; // Direction of horizontal movement
     public float m_fJumpForce = 20.0f; // Jump velocity
     public float m_fGravity = 5.0f; // Gravity velocity
     public float m_fVerticalVelocity = 0; // Current vertical velocity
     public float m_fHorizontalVelocity = 0; // Current vertical velocity
+    public bool m_bCrouching = false;
+    #endregion
+
+    private float m_fCameraInput = 0; // Horizontal input 
     public float m_fCameraSpeed = 2f; // Speed of camera rotation
-    public int m_nDirY; // Direction of vertical movement
-    public int m_nDirZ; // Direction of horizontal movement
-    public int m_nHorizontalRayCount = 5;
-    public int m_nVerticalRayCount = 10;
 
     private void Start()
     {
-        m_cCapsuleCollider = GetComponent<CapsuleCollider>();
 
     }
 
@@ -52,34 +60,71 @@ public class TPC_Movement : MonoBehaviour
         {
             m_nDirY = -1; // Direction is negative
         }
-
+        if (Input.GetButton("Crouch")) // If crouch button being hit
+        {
+            m_bCrouching = true; // Crouching is true
+        }
+        else
+        {
+            m_bCrouching = false; // Crouhing is false
+        }
     }
 
+
+    //---------------------------------------------------------
+    // Creates a grid of raycasts based on the direction of movement and velocity
+    // If rays hit collision layer stop velocity in given direction 
+    //---------------------------------------------------------
     public void CheckCollisions()
     {
-        if (Physics.Raycast(this.transform.position, Vector3.up * m_nDirY, m_cCapsuleCollider.height * 0.5f, m_LayerMask) // Casts 5 rays around player for vertical movement based on direction
-            || Physics.Raycast(this.transform.position + new Vector3(m_cCapsuleCollider.radius, 0, m_cCapsuleCollider.radius), Vector3.up * m_nDirY, m_cCapsuleCollider.height * 0.5f, m_LayerMask)
-            || Physics.Raycast(this.transform.position + new Vector3(-m_cCapsuleCollider.radius, 0, m_cCapsuleCollider.radius), Vector3.up * m_nDirY, m_cCapsuleCollider.height * 0.5f, m_LayerMask)
-            || Physics.Raycast(this.transform.position + new Vector3(m_cCapsuleCollider.radius, 0, -m_cCapsuleCollider.radius), Vector3.up * m_nDirY, m_cCapsuleCollider.height * 0.5f, m_LayerMask)
-            || Physics.Raycast(this.transform.position + new Vector3(-m_cCapsuleCollider.radius, 0, -m_cCapsuleCollider.radius), Vector3.up * m_nDirY, m_cCapsuleCollider.height * 0.5f, m_LayerMask)
-            )
+        int count = 0; // Count of collisions detected
+        for (int i = 0; i <= m_nJumpRayCount; i++) // Jump ray count
         {
-            m_bIsGrounded = true; // If rays hit something is grounded
+            Vector3 startPos = this.transform.position - (transform.right * 0.5f) - (transform.forward * 0.5f); // Sets start positions of rays to back left
+            startPos += i * ((transform.forward * (m_fRayLength / m_nJumpRayCount)) * 2); // Adds to ray positions to create a grid with number of rays
+            for (int j = 0; j <= m_nJumpRayCount; j++) // Jump ray count
+            {
+                Debug.DrawRay(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nJumpRayCount))), Vector3.up * m_nDirY, Color.red);
+                if (Physics.Raycast(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nJumpRayCount))), Vector3.up * m_nDirY, m_fControllerHeight * 0.5f, m_CollisionMask))
+                {
+                    count += 1;
+                }
+            }
+        }
+
+        if(count > 0)
+        {
+            m_bIsGrounded = true;
         }
         else
         {
             m_bIsGrounded = false;
         }
+
         for (int i = 0; i < m_nVerticalRayCount; i++)
         {
-            Vector3 startPos = this.transform.position - new Vector3(0, (m_cCapsuleCollider.height * 0.45f) - (i * (m_cCapsuleCollider.height / m_nVerticalRayCount)), 0);
-            startPos -= transform.right * m_cCapsuleCollider.radius;
-            for (int j = 0; j <= m_nHorizontalRayCount; j++)
+            if (i == 0) { } // Skips first rays
+            else
             {
-                Debug.DrawRay(startPos + new Vector3(transform.right.x * j * ((m_cCapsuleCollider.radius * 2) / m_nHorizontalRayCount), 0, 0), transform.forward * m_fMovementInput, Color.red);
-                if(Physics.Raycast(startPos + new Vector3(j * ((m_cCapsuleCollider.radius * 2) / m_nHorizontalRayCount), 0, 0), transform.forward * m_fMovementInput, m_cCapsuleCollider.radius,m_LayerMask))
+                Vector3 startPos;
+                if(!m_bCrouching)
                 {
-                    m_fHorizontalVelocity = 0;
+                    startPos = this.transform.position - new Vector3(0, (m_fControllerHeight * 0.5f) - (i * (m_fControllerHeight / m_nVerticalRayCount)), 0);
+                    startPos -= transform.right * m_fRayLength;
+                }
+                else
+                {
+                    startPos = this.transform.position - new Vector3(0, (m_fControllerHeight * 0.5f) - (i * ((m_fControllerHeight * 0.5f) / m_nVerticalRayCount)), 0);
+                    startPos -= transform.right * m_fRayLength;
+                }
+
+                for (int j = 0; j <= m_nHorizontalRayCount; j++)
+                {
+                    Debug.DrawRay(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nHorizontalRayCount))), transform.forward, Color.red);
+                    if (Physics.Raycast(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nHorizontalRayCount))), transform.forward * m_fMovementInput, m_fRayLength, m_CollisionMask))
+                    {
+                        m_fHorizontalVelocity = 0;
+                    }
                 }
             }
         }
@@ -111,7 +156,7 @@ public class TPC_Movement : MonoBehaviour
 
     public void Move()
     {
-        transform.Translate(new Vector3( 0, m_fVerticalVelocity * Time.deltaTime, m_fHorizontalVelocity * Time.deltaTime)); // Applies velocity based on input, move speed and vertical velocity
+        transform.Translate(new Vector3(0, m_fVerticalVelocity * Time.deltaTime, m_fHorizontalVelocity * Time.deltaTime)); // Applies velocity based on input, move speed and vertical velocity
         transform.Rotate(Vector3.up, m_fCameraInput * m_fCameraSpeed * Time.deltaTime); // Updates rotation based on horizontal input
     }
 }
