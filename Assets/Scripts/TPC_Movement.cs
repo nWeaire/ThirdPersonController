@@ -12,7 +12,6 @@ public class TPC_Movement : MonoBehaviour
     public LayerMask m_CollisionMask; // Layer mask for collision checks
     public bool m_bIsGrounded = false; // Checks if player is grounded
     public int m_nJumpRayCount = 4;
-
     #endregion
 
     #region Movement Variables
@@ -26,13 +25,13 @@ public class TPC_Movement : MonoBehaviour
     public float m_fHorizontalVelocity = 0; // Current vertical velocity
     public bool m_bCrouching = false;
     #endregion
-
+    private Animator m_aAnimator;
     private float m_fCameraInput = 0; // Horizontal input 
     public float m_fCameraSpeed = 2f; // Speed of camera rotation
 
     private void Start()
     {
-
+        m_aAnimator = this.GetComponent<Animator>();
     }
 
     void Update()
@@ -60,13 +59,34 @@ public class TPC_Movement : MonoBehaviour
         {
             m_nDirY = -1; // Direction is negative
         }
+
         if (Input.GetButton("Crouch")) // If crouch button being hit
         {
             m_bCrouching = true; // Crouching is true
         }
         else
         {
-            m_bCrouching = false; // Crouhing is false
+            int count = 0; // Count of collisions detected
+            for (int i = 0; i <= m_nJumpRayCount; i++) // Jump ray count
+            {
+                Vector3 startPos = this.transform.position - (transform.right * 0.5f) - (transform.forward * 0.5f); // Sets start positions of rays to back left
+                startPos += i * ((transform.forward * (m_fRayLength / m_nJumpRayCount)) * 2); // Adds to ray positions to create a grid with number of rays
+                for (int j = 0; j <= m_nJumpRayCount; j++) // Jump ray count
+                {
+                    if (Physics.Raycast(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nJumpRayCount))), Vector3.up, m_fControllerHeight * 0.5f, m_CollisionMask))
+                    {
+                        count += 1;
+                    }
+                }
+            }
+            if(count > 0)
+            { 
+                m_bCrouching = true; // Crouhing is false
+            }
+            else
+            {
+                m_bCrouching = false;
+            }
         }
     }
 
@@ -84,7 +104,6 @@ public class TPC_Movement : MonoBehaviour
             startPos += i * ((transform.forward * (m_fRayLength / m_nJumpRayCount)) * 2); // Adds to ray positions to create a grid with number of rays
             for (int j = 0; j <= m_nJumpRayCount; j++) // Jump ray count
             {
-                Debug.DrawRay(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nJumpRayCount))), Vector3.up * m_nDirY, Color.red);
                 if (Physics.Raycast(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nJumpRayCount))), Vector3.up * m_nDirY, m_fControllerHeight * 0.5f, m_CollisionMask))
                 {
                     count += 1;
@@ -120,7 +139,6 @@ public class TPC_Movement : MonoBehaviour
 
                 for (int j = 0; j <= m_nHorizontalRayCount; j++)
                 {
-                    Debug.DrawRay(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nHorizontalRayCount))), transform.forward, Color.red);
                     if (Physics.Raycast(startPos + (transform.right * (j * ((m_fRayLength * 2) / m_nHorizontalRayCount))), transform.forward * m_fMovementInput, m_fRayLength, m_CollisionMask))
                     {
                         m_fHorizontalVelocity = 0;
@@ -147,6 +165,7 @@ public class TPC_Movement : MonoBehaviour
         if (m_bIsGrounded) // If grounded
         {
             m_fVerticalVelocity = m_fJumpForce; // Apply jump force to current vertical velocity
+            m_aAnimator.SetBool("Jump", true);
         }
         else
         {
@@ -158,5 +177,31 @@ public class TPC_Movement : MonoBehaviour
     {
         transform.Translate(new Vector3(0, m_fVerticalVelocity * Time.deltaTime, m_fHorizontalVelocity * Time.deltaTime)); // Applies velocity based on input, move speed and vertical velocity
         transform.Rotate(Vector3.up, m_fCameraInput * m_fCameraSpeed * Time.deltaTime); // Updates rotation based on horizontal input
+
+        m_aAnimator.SetFloat("HorizontalVelocity", m_fHorizontalVelocity);
+        m_aAnimator.SetFloat("VerticalVelocity", m_fVerticalVelocity);
+        if(m_fHorizontalVelocity == 0)
+        {
+            m_aAnimator.SetBool("IsIdle", true);
+        }
+        else
+        {
+            m_aAnimator.SetBool("IsIdle", false);
+        }
+        
+        if(m_fVerticalVelocity == 0)
+        {
+            m_aAnimator.SetBool("Jump", false);
+        }
+
+        if(m_bCrouching)
+        {
+            m_aAnimator.SetBool("Crouched", true);
+        }
+        else
+        {
+            m_aAnimator.SetBool("Crouched", false);
+        }
+
     }
 }
